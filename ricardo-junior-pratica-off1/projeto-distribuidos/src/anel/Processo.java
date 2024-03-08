@@ -10,7 +10,7 @@ import java.util.Scanner;
 import util.ProcessosHandler;
 import util.SocketUDP;
 
-public class Processo {
+public class Processo implements Runnable {
 
     private SocketUDP socket;
 
@@ -39,9 +39,8 @@ public class Processo {
         this.scan = new Scanner(System.in);
     }
 
-    private void printMessage(String msg){
-        Arrays.stream( msg.split(" ") ).skip(2).forEach(p -> System.out.print(p + " ") );
-        System.out.println(msg);
+    private void printMessage(String msg) {
+        Arrays.stream(msg.split(";")).skip(2).forEach(p -> System.out.print(p + " "));
     }
 
     private void listarProcessos() {
@@ -56,24 +55,24 @@ public class Processo {
     private void menu() {
         System.out.println("############### MENU ###############");
         System.out.println("OPÇÕES");
-        System.out.println("[0] -> CONECTAR-SE A UM PROCESSO");
-        System.err.println("[1] -> MANDAR MENSAGEM A UM PROCESSO");
-        System.out.println("[2] -> MANDAR MENSAGEM PARA TODOS");
-        System.out.println("[3] -> SCANEAR REDE");
-        System.out.println("[4] -> SAIR");
+        System.out.println("[0] > CONECTAR-SE A UM PROCESSO");
+        System.err.println("[1] > MANDAR MENSAGEM A UM PROCESSO");
+        System.out.println("[2] > MANDAR MENSAGEM PARA TODOS");
+        System.out.println("[3] > SCANEAR REDE");
+        System.out.println("[4] > SAIR");
         System.out.println("####################################");
     }
 
     private void unicast() {
-        String msg = "unicast ";
+        String msg = "unicast;";
         System.out.println("Qual o login ?");
         msg += this.scan.next();
-        msg += " " + sendMessage();
+        msg += ";" + sendMessage();
         send(msg);
     }
 
     private void broadcast() {
-        send("broadcast " + this.socket.getLogin() + " " + sendMessage());
+        send("broadcast;" + this.socket.getLogin() + ";" + sendMessage());
     }
 
     private void connectTo() {
@@ -101,32 +100,31 @@ public class Processo {
         this.socket.enviar();
     }
 
-    private void buildInternet(String msg) {
+    private void buildNet(String msg) {
         String[] net = msg.split(";");
         for (int i = 4; i <= net.length; i += 3) {
             ProcessosHandler processosHandler = new ProcessosHandler(net[i - 1], Integer.parseInt(net[i - 2]),
                     net[i - 3]);
-            if (this.processos.contains(processosHandler))
-                continue;
-            else
+            if (!this.processos.contains(processosHandler))
                 this.processos.add(processosHandler);
         }
     }
 
-    private void listen(){
+    @Override
+    public void run() {
         while (true) {
             String res = this.socket.receber();
-            if( res != null ){
+            if (res != null) {
                 if (res.contains("ping")) {
                     if (res.split(";")[3].equals(this.socket.getLogin())) {
-                        buildInternet(res);
+                        buildNet(res);
                     } else {
                         res += ";" + this.socket.getAddress_proprio() + ";" + this.socket.getPORTA_PROPRIA() + ";"
                                 + this.socket.getLogin();
                         send(res);
                     }
-                } else if (res.split(" ")[0].equals("unicast")) {
-                    if(res.split(" ")[1].equals(this.socket.getLogin())){
+                } else if (res.split(";")[0].equals("unicast")) {
+                    if (res.split(";")[1].equals(this.socket.getLogin())) {
                         System.out.println("##########################");
                         System.out.println("Unicast:");
                         printMessage(res);
@@ -134,10 +132,8 @@ public class Processo {
                     } else {
                         send(res);
                     }
-                } else if(res.contains("broadcast")) {
-                    if (res.split(" ")[1].equals(this.socket.getLogin()))
-                        return;
-                    else{
+                } else if (res.split(";")[0].equals("broadcast")) {
+                    if (!res.split(";")[1].equals(this.socket.getLogin())) {
                         System.out.println("##########################");
                         System.out.println("Broadcast:");
                         printMessage(res);
@@ -150,44 +146,45 @@ public class Processo {
     }
 
     private void serverLoop() {
-        String opcao;
+        String opcao = "";
         do {
-            listarProcessos();
-            menu();
-            opcao = this.scan.next();
-            switch (opcao) {
-                case "0":
-                    connectTo();
-                    break;
-                case "1":
-                    unicast();
-                    break;
-                case "2":
-                    broadcast();
-                    break;
-                case "3":
-                    scanerRede();
-                    break;
-                case "4":
-                    System.out.println("SAINDO");
-                    // this.socket.close();
-                    // this.scan.close();
-                    break;
-                default:
-                    System.out.println("Erro!");
-                    break;
+            try {
+                Thread.sleep(300);
+                listarProcessos();
+                menu();
+                opcao = this.scan.next();
+                switch (opcao) {
+                    case "0":
+                        connectTo();
+                        break;
+                    case "1":
+                        unicast();
+                        break;
+                    case "2":
+                        broadcast();
+                        break;
+                    case "3":
+                        scanerRede();
+                        break;
+                    case "4":
+                        System.out.println("SAINDO");
+                        this.scan.close();
+                        this.socket.close();
+                        break;
+                    default:
+                        System.out.println("Erro!");
+                        break;
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         } while (!opcao.equals("4"));
     }
 
     public void start() {
         System.out.println("INICIALIZANDO!!!");
-        new Thread(() -> {
-            listen();
-        }).start();
-        new Thread(() -> {
-            serverLoop();
-        }).start();
+        new Thread(this).start();
+        new Thread(() -> serverLoop()).start();
     }
 
 }
