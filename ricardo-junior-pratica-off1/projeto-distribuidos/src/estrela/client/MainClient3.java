@@ -1,7 +1,7 @@
 package client;
 
-public class MainClient {
-    
+public class MainClient3 {
+ 
     public static void main(String[] args) {
         try {
             ClientConfig clientConfig = new ClientConfig();
@@ -12,4 +12,5 @@ public class MainClient {
 
         System.out.println("Cliente finalizado!");
     }
+    
 }

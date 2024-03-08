@@ -1,6 +1,6 @@
 package client;
 
-public class MainClient {
+public class MainClient2 {
     
     public static void main(String[] args) {
         try {
@@ -12,4 +12,5 @@ public class MainClient {
 
         System.out.println("Cliente finalizado!");
     }
+    
 }
